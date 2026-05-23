@@ -1,4 +1,5 @@
 import os
+import operator    
 import yaml
 from src.data_loader import load_dataset
 from src.preprocess import preprocess_data
@@ -6,6 +7,36 @@ from src.clustering import find_best_k, cluster_data
 from src.visualization import visualize_clusters
 from src.summarizer import summarize_clusters, generate_mood_profile
 from src.utils import create_output_folder, save_text, save_json
+
+
+# ---  filter helper -------------------------------------------
+def apply_filters(df, filters):
+    """
+    filters is a list of dicts like:
+      {"column": "tempo", "op": ">", "value": 100}
+    Supported ops: >  >=  <  <=  ==  !=
+    """
+    if not filters:
+        return df
+
+    import pandas as pd
+    ops = {
+        ">":  operator.gt,
+        ">=": operator.ge,
+        "<":  operator.lt,
+        "<=": operator.le,
+        "==": operator.eq,
+        "!=": operator.ne,
+    }
+
+    mask = pd.Series([True] * len(df), index=df.index)
+    for f in filters:
+        col, op_str, val = f["column"], f["op"], float(f["value"])
+        mask = mask & ops[op_str](df[col], val)
+
+    filtered = df[mask].copy()
+    print(f"[filter] {len(df) - len(filtered)} rows removed, {len(filtered)} remain.")
+    return filtered
 
 
 def run_single_config(config):
@@ -23,15 +54,25 @@ def run_single_config(config):
     print(f"Loading dataset {dataset}...")
     df = load_dataset(dataset)
 
-    print("Preprocessing...")
-    X_scaled, scaler = preprocess_data(df)
+    # ---  apply filters before preprocessing ---
+    filters = config.get("filters", [])
+    df = apply_filters(df, filters)
 
+    print("Preprocessing...")
+    # ---  pass preprocessing config ---
+    preprocessing_cfg = config.get("preprocessing", {})
+    X_scaled, scaler = preprocess_data(df, config=preprocessing_cfg)
+    
     k = None
     if config.get("clustering") and config["clustering"].get("k"):
         k = config["clustering"]["k"]
 
+    # ---  support min_k / max_k from config ---
+    min_k = config.get("clustering", {}).get("min_k", 2)
+    max_k = config.get("clustering", {}).get("max_k", 8)
+
     if k is None:
-        k = find_best_k(X_scaled)
+        k = find_best_k(X_scaled, min_k=min_k, max_k=max_k)
 
     print(f"Using K={k}")
     model, labels = cluster_data(X_scaled, k)
