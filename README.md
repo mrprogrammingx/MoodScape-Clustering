@@ -7,3 +7,6 @@ the output is visible in the outputs folder
 
 Keywords: music, clustering, mood
 
+
+For run based on config file, you can run this:
+python3 main.py --config configs/example_runs.yaml
