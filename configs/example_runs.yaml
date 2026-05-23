@@ -1,0 +1,12 @@
+runs:
+  - run_name: k3
+    output_slug: run_k3
+    dataset: data/dataset_A.csv
+    clustering:
+      k: 3
+
+  - run_name: k4
+    output_slug: run_k4
+    dataset: data/dataset_A.csv
+    clustering:
+      k: 4

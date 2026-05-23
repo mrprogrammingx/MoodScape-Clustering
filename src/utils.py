@@ -7,3 +7,10 @@ def save_text(text, path):
         f.write(text)
 def print_separator():
     print("-" * 50)
+
+import json
+
+
+def save_json(obj, path):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(obj, f, indent=2)

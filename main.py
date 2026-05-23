@@ -32,7 +32,7 @@ def main():
 
     parser.add_argument(
         "--input",
-        required=True,
+        required=False,
         help="Path to dataset"
     )
 
@@ -46,13 +46,25 @@ def main():
         type=int
     )
 
+    parser.add_argument(
+        "--config",
+        help="Path to YAML config file describing one or more runs"
+    )
+
     args = parser.parse_args()
 
+    # If a config file is provided, run batch jobs
+    if args.config:
+        from src.runner import run_from_config_file
+        run_from_config_file(args.config)
+        return
+
+    # legacy single-run behavior
     create_output_folder(args.output)
 
     print("Loading dataset...")
     df = load_dataset(args.input)
-    
+
 
     print("Preprocessing...")
     X_scaled, scaler = preprocess_data(df)
