@@ -6,6 +6,7 @@ from src.clustering import find_best_k, cluster_data
 from src.visualization import visualize_clusters
 from src.summarizer import summarize_clusters, generate_mood_profile
 from src.utils import create_output_folder, save_text, save_json
+from src.history import save_run_history
 
 
 def run_single_config(config):
@@ -57,6 +58,8 @@ def run_single_config(config):
 
     metrics = {"k": k}
     save_json(metrics, os.path.join(run_folder, "metrics.json"))
+
+    save_run_history(config, metrics, run_folder)
 
     print(f"Run saved to {run_folder}")
 

@@ -53,6 +53,12 @@ def main():
 
     args = parser.parse_args()
 
+    # If no input or config is provided, launch interactive CLI UI
+    if not args.input and not args.config:
+        from src.ui import run_cli_ui
+        run_cli_ui()
+        return
+
     # If a config file is provided, run batch jobs
     if args.config:
         from src.runner import run_from_config_file
