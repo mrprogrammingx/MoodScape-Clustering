@@ -39,3 +39,14 @@ def generate_mood_profile(stats):
         mood_parts.append("balanced")
 
     return ", ".join(mood_parts)
+
+def get_distinguishing_features(df, features, top_n=3):
+    global_means = df[features].mean()
+    results = {}
+    for cluster_id in df["cluster"].unique():
+        cluster_df = df[df["cluster"] == cluster_id]
+        cluster_means = cluster_df[features].mean()
+        relative_diff = ((cluster_means - global_means) / global_means).abs()
+        top_features = relative_diff.sort_values(ascending=False).head(top_n)
+        results[cluster_id] = top_features.index.tolist()
+    return results

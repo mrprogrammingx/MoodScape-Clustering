@@ -4,16 +4,20 @@ from src.data_loader import load_dataset
 from src.preprocess import preprocess_data
 from src.clustering import (
     find_best_k,
-    cluster_data
+    cluster_data,
+    predict_clusters
 )
 from src.visualization import visualize_clusters
 from src.summarizer import (
     summarize_clusters,
-    generate_mood_profile
+    generate_mood_profile,
+    get_distinguishing_features
 )
 from src.utils import (
     create_output_folder,
-    save_text
+    save_text,
+    save_artifacts,
+    load_artifacts
 )
 
 
@@ -51,6 +55,11 @@ def main():
         help="Path to YAML config file describing one or more runs"
     )
 
+    parser.add_argument(
+        "--predict",
+        help="Path to new data for prediction"
+    )
+
     args = parser.parse_args()
 
     # If a config file is provided, run batch jobs
@@ -59,7 +68,15 @@ def main():
         run_from_config_file(args.config)
         return
 
-    # legacy single-run behavior
+    # Prediction mode
+    if args.predict:
+        model, scaler = load_artifacts(args.output)
+        new_df = load_dataset(args.predict)
+        predict_clusters(new_df, model, scaler, FEATURES, f"{args.output}/predictions.csv")
+        print(f"Predictions saved to {args.output}/predictions.csv")
+        return
+
+    # Normal run
     create_output_folder(args.output)
 
     print("Loading dataset...")
@@ -81,7 +98,6 @@ def main():
     df["cluster"] = labels
 
     print("Generating visualization...")
-
     visualize_clusters(
         X_scaled,
         labels,
@@ -89,29 +105,18 @@ def main():
     )
 
     print("Generating summaries...")
-
-    summaries = summarize_clusters(
-        df,
-        FEATURES
-    )
+    summaries = summarize_clusters(df, FEATURES)
+    distinguishing = get_distinguishing_features(df, FEATURES)
 
     summary_text = ""
 
     for cluster_id, stats in summaries.items():
-
         mood = generate_mood_profile(stats)
-
-        summary_text += (
-            f"Cluster {cluster_id}\n"
-        )
-
-        summary_text += (
-            f"Size: {stats['size']}\n"
-        )
-
-        summary_text += (
-            f"Mood: {mood}\n\n"
-        )
+        top_features = distinguishing.get(cluster_id, [])
+        summary_text += f"Cluster {cluster_id}\n"
+        summary_text += f"Size: {stats['size']}\n"
+        summary_text += f"Mood: {mood}\n"
+        summary_text += f"Top features: {', '.join(top_features)}\n\n"
 
     save_text(
         summary_text,
@@ -122,7 +127,7 @@ def main():
         f"{args.output}/clustered_dataset.csv",
         index=False
     )
-
+    save_artifacts(model, scaler, args.output)
     print("Done!")
 
 
