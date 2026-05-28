@@ -11,7 +11,11 @@ from src.visualization import visualize_clusters
 from src.summarizer import (
     summarize_clusters,
     generate_mood_profile,
-    get_distinguishing_features
+    get_distinguishing_features,
+    generate_cluster_profile,
+    inspect_cluster,
+    export_cluster_summary,
+    export_representative_samples
 )
 from src.utils import (
     create_output_folder,
@@ -34,31 +38,12 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "--input",
-        required=False,
-        help="Path to dataset"
-    )
-
-    parser.add_argument(
-        "--output",
-        default="outputs"
-    )
-
-    parser.add_argument(
-        "--clusters",
-        type=int
-    )
-
-    parser.add_argument(
-        "--config",
-        help="Path to YAML config file describing one or more runs"
-    )
-
-    parser.add_argument(
-        "--predict",
-        help="Path to new data for prediction"
-    )
+    parser.add_argument("--input", required=False, help="Path to dataset")
+    parser.add_argument("--output", default="outputs")
+    parser.add_argument("--clusters", type=int)
+    parser.add_argument("--config", help="Path to YAML config file")
+    parser.add_argument("--predict", help="Path to new data for prediction")
+    parser.add_argument("--inspect", type=int, help="Cluster ID to deeply inspect")
 
     args = parser.parse_args()
 
@@ -109,19 +94,21 @@ def main():
     distinguishing = get_distinguishing_features(df, FEATURES)
 
     summary_text = ""
-
     for cluster_id, stats in summaries.items():
-        mood = generate_mood_profile(stats)
+        profile = generate_cluster_profile(df, FEATURES, cluster_id)
         top_features = distinguishing.get(cluster_id, [])
-        summary_text += f"Cluster {cluster_id}\n"
-        summary_text += f"Size: {stats['size']}\n"
-        summary_text += f"Mood: {mood}\n"
+        summary_text += profile + "\n"
         summary_text += f"Top features: {', '.join(top_features)}\n\n"
 
-    save_text(
-        summary_text,
-        f"{args.output}/cluster_summary.txt"
-    )
+    save_text(summary_text, f"{args.output}/cluster_summary.txt")
+
+    # Deep inspect a specific cluster if requested
+    if args.inspect is not None:
+        inspect_cluster(df, FEATURES, args.inspect)
+
+    # Export summaries and representative samples
+    export_cluster_summary(df, FEATURES, f"{args.output}/cluster_stats.csv")
+    export_representative_samples(df, FEATURES, f"{args.output}/representative_samples.csv")
 
     df.to_csv(
         f"{args.output}/clustered_dataset.csv",
