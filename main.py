@@ -5,16 +5,24 @@ from src.data_loader import load_dataset
 from src.preprocess import preprocess_data
 from src.clustering import (
     find_best_k,
-    cluster_data
+    cluster_data,
+    predict_clusters
 )
 from src.visualization import visualize_clusters
 from src.summarizer import (
     summarize_clusters,
-    generate_mood_profile
+    generate_mood_profile,
+    get_distinguishing_features,
+    generate_cluster_profile,
+    inspect_cluster,
+    export_cluster_summary,
+    export_representative_samples
 )
 from src.utils import (
     create_output_folder,
-    save_text
+    save_text,
+    save_artifacts,
+    load_artifacts
 )
 
 
@@ -51,18 +59,20 @@ def main():
         "--config",
         help="Path to YAML config file describing one or more runs"
     )
-
+    
     parser.add_argument(
         "--scaler",
         choices=["standard", "minmax"],
         default="standard",
         help="Scaling method: standard (default) or minmax"
     )
+    
     parser.add_argument(
         "--features",
         default=None,
         help="Comma-separated list of features to use, e.g. tempo,energy,danceability"
     )
+    
     parser.add_argument(
         "--reduce-dims",
         dest="reduce_dims",
@@ -70,6 +80,7 @@ def main():
         default=False,
         help="Apply PCA before clustering"
     )
+    
     parser.add_argument(
         "--n-components",
         dest="n_components",
@@ -77,6 +88,7 @@ def main():
         default=2,
         help="Number of PCA components (only used with --reduce-dims)"
     )
+    
     parser.add_argument(
         "--min-k",
         dest="min_k",
@@ -84,6 +96,7 @@ def main():
         default=2,
         help="Minimum k when auto-selecting number of clusters"
     )
+    
     parser.add_argument(
         "--max-k",
         dest="max_k",
@@ -91,6 +104,7 @@ def main():
         default=8,
         help="Maximum k when auto-selecting number of clusters"
     )
+    
     parser.add_argument(
         "--filter",
         action="append",
@@ -99,6 +113,8 @@ def main():
         help="Filter rows before clustering, e.g. --filter 'tempo > 100'. Can be repeated."
     )
    
+    parser.add_argument("--predict", help="Path to new data for prediction")
+    parser.add_argument("--inspect", type=int, help="Cluster ID to deeply inspect")
 
     args = parser.parse_args()
 
@@ -114,7 +130,15 @@ def main():
         run_from_config_file(args.config)
         return
 
-    # legacy single-run behavior
+    # Prediction mode
+    if args.predict:
+        model, scaler = load_artifacts(args.output)
+        new_df = load_dataset(args.predict)
+        predict_clusters(new_df, model, scaler, FEATURES, f"{args.output}/predictions.csv")
+        print(f"Predictions saved to {args.output}/predictions.csv")
+        return
+
+    # Normal run
     create_output_folder(args.output)
 
     print("Loading dataset...")
@@ -164,7 +188,6 @@ def main():
     df["cluster"] = labels
 
     print("Generating visualization...")
-
     visualize_clusters(
         X_scaled,
         labels,
@@ -178,10 +201,12 @@ def main():
         features    # FEATURES — now uses whatever features were selected
     )
 
+    distinguishing = get_distinguishing_features(df, features)
+
+
     summary_text = ""
-
     for cluster_id, stats in summaries.items():
-
+        
         mood = generate_mood_profile(stats)
 
         summary_text += (
@@ -196,16 +221,28 @@ def main():
             f"Mood: {mood}\n\n"
         )
 
+        profile = generate_cluster_profile(df, features, cluster_id)
+        top_features = distinguishing.get(cluster_id, [])
+        summary_text += profile + "\n"
+        summary_text += f"Top features: {', '.join(top_features)}\n\n"
+
     save_text(
         summary_text,
         f"{args.output}/cluster_summary.txt"
     )
+    # Deep inspect a specific cluster if requested
+    if args.inspect is not None:
+        inspect_cluster(df, features, args.inspect)
+
+    # Export summaries and representative samples
+    export_cluster_summary(df, features, f"{args.output}/cluster_stats.csv")
+    export_representative_samples(df, features, f"{args.output}/representative_samples.csv")
 
     df.to_csv(
         f"{args.output}/clustered_dataset.csv",
         index=False
     )
-
+    save_artifacts(model, scaler, args.output)
     print("Done!")
 
 

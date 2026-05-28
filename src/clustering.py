@@ -26,3 +26,9 @@ def cluster_data(X, k):
     labels = model.fit_predict(X)
 
     return model, labels
+
+def predict_clusters(new_df, model, scaler, features, output_path):
+    X = scaler.transform(new_df[features])
+    new_df["cluster"] = model.predict(X)
+    new_df.to_csv(output_path, index=False)
+    return new_df
