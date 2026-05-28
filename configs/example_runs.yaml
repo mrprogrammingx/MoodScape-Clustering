@@ -10,3 +10,44 @@ runs:
     dataset: data/dataset_A.csv
     clustering:
       k: 4
+
+  # minmax scaler, only 3 features, auto k with custom range
+  - run_name: minmax_3feat
+    output_slug: run_minmax_3feat
+    dataset: data/dataset_A.csv
+    preprocessing:
+      scaler: minmax
+      features:
+        - tempo
+        - energy
+        - danceability
+    clustering:
+      min_k: 2
+      max_k: 6
+
+  # PCA reduction before clustering
+  - run_name: pca_run
+    output_slug: run_pca
+    dataset: data/dataset_A.csv
+    preprocessing:
+      scaler: standard
+      reduce_dims: true
+      n_components: 2
+    clustering:
+      k: 3
+
+  # filter to fast high-energy tracks only
+  - run_name: hype_tracks
+    output_slug: run_hype
+    dataset: data/dataset_A.csv
+    preprocessing:
+      scaler: standard
+    clustering:
+      k: 3
+    filters:
+      - column: energy
+        op: ">="
+        value: 0.6
+      - column: tempo
+        op: ">"
+        value: 120
