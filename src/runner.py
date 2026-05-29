@@ -85,6 +85,11 @@ def run_single_config(config):
     print("Generating visualization...")
     visualize_clusters(X_scaled, labels, os.path.join(run_folder, "cluster_plot.png"))
 
+    # compute and save cluster quality metrics early so summaries may reference size flags
+    metrics = compute_cluster_metrics(X_scaled, labels)
+    metrics["k"] = k
+    save_json(metrics, os.path.join(run_folder, "metrics.json"))
+
     print("Generating summaries...")
     features = config.get("features", ["tempo", "energy", "danceability", "skips", "replays"])
     summaries = summarize_clusters(df, features)
@@ -96,14 +101,17 @@ def run_single_config(config):
         summary_text += (f"Size: {stats['size']}\n")
         summary_text += (f"Mood: {mood}\n\n")
 
+    # add size anomaly notes if present in metrics
+    size_flags = metrics.get("size_flags", {})
+    if size_flags:
+        summary_text += "Cluster size checks:\n"
+        for cid, info in size_flags.items():
+            if info["flag"] != "ok":
+                summary_text += f" - Cluster {cid}: {info['flag']} ({'; '.join(info['reasons'])}) size={info['size']}\n"
+        summary_text += "\n"
+
     save_text(summary_text, os.path.join(run_folder, "cluster_summary.txt"))
     df.to_csv(os.path.join(run_folder, "clustered_dataset.csv"), index=False)
-
-    # compute and save cluster quality metrics
-    metrics = compute_cluster_metrics(X_scaled, labels)
-    # include selected k in metrics for convenience
-    metrics["k"] = k
-    save_json(metrics, os.path.join(run_folder, "metrics.json"))
 
     # Persist run in global history
     save_run_history(config, metrics, run_folder)
