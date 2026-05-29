@@ -55,6 +55,46 @@ def compute_cluster_metrics(X, labels):
 
     metrics["computed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # cluster size anomaly detection
+    try:
+        total = int(len(labels))
+        sizes = np.array(list(metrics["cluster_sizes"].values()))
+        mean = float(sizes.mean()) if len(sizes) > 0 else 0.0
+        std = float(sizes.std()) if len(sizes) > 0 else 0.0
+
+        size_flags = {}
+        # thresholds
+        absolute_min = 3
+        small_rel = 0.05  # <5% of total
+        large_rel = 0.5   # >50% of total
+
+        for cid, sz in metrics["cluster_sizes"].items():
+            reason = []
+            flag = "ok"
+            if sz <= absolute_min:
+                flag = "small"
+                reason.append(f"size <= {absolute_min}")
+            if total > 0 and (sz / total) < small_rel:
+                flag = "small"
+                reason.append(f"<{int(small_rel*100)}% of total")
+            if len(sizes) > 1 and sz < (mean - 2 * std):
+                flag = "small"
+                reason.append("below mean - 2*std")
+            if total > 0 and (sz / total) > large_rel:
+                flag = "large"
+                reason.append(f">{int(large_rel*100)}% of total")
+            if len(sizes) > 1 and sz > (mean + 2 * std):
+                flag = "large"
+                reason.append("above mean + 2*std")
+
+            size_flags[int(cid)] = {"flag": flag, "size": int(sz), "reasons": reason}
+
+        metrics["size_flags"] = size_flags
+        metrics["size_summary"] = {"total": total, "mean": mean, "std": std}
+    except Exception:
+        metrics["size_flags"] = {}
+        metrics["size_summary"] = {}
+
     return metrics
 
 
