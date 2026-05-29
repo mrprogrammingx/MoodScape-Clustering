@@ -24,3 +24,18 @@ def save_run_history(config, metrics, output_folder, history_path="outputs/run_h
     
     with open(history_path, "w", encoding="utf-8") as f:
         json.dump(history, f, indent=4)
+
+
+def save_best_run(best_summary, path="outputs/best_run.json"):
+        """
+        Save a concise summary of the selected best run.
+
+        best_summary should be a dict with keys like:
+            - selected_by
+            - best_output_folder
+            - best_metrics
+            - best_config
+        """
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+                json.dump(best_summary, f, indent=2)

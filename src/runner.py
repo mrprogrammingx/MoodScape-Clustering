@@ -8,6 +8,7 @@ from src.visualization import visualize_clusters
 from src.summarizer import summarize_clusters, generate_mood_profile
 from src.utils import create_output_folder, save_text, save_json
 from src.history import save_run_history
+from src.metrics import compute_cluster_metrics
 
 
 # ---  filter helper -------------------------------------------
@@ -97,12 +98,18 @@ def run_single_config(config):
     save_text(summary_text, os.path.join(run_folder, "cluster_summary.txt"))
     df.to_csv(os.path.join(run_folder, "clustered_dataset.csv"), index=False)
 
-    metrics = {"k": k}
+    # compute and save cluster quality metrics
+    metrics = compute_cluster_metrics(X_scaled, labels)
+    # include selected k in metrics for convenience
+    metrics["k"] = k
     save_json(metrics, os.path.join(run_folder, "metrics.json"))
 
+    # Persist run in global history
     save_run_history(config, metrics, run_folder)
 
+    result = {"config": config, "metrics": metrics, "output_folder": run_folder}
     print(f"Run saved to {run_folder}")
+    return result
 
 
 def run_from_config_file(path):
@@ -115,5 +122,23 @@ def run_from_config_file(path):
     else:
         runs = [cfg]
 
+    results = []
     for run_cfg in runs:
-        run_single_config(run_cfg)
+        r = run_single_config(run_cfg)
+        # run_single_config now returns a result dict
+        results.append(r)
+
+    # If multiple runs were run from this file, select the best
+    if len(results) > 1:
+        from src.metrics import select_best_run
+        from src.history import save_best_run
+
+        best = select_best_run(results, rule=cfg.get("selection_rule", "highest_silhouette"))
+        best_summary = {
+            "selected_by": cfg.get("selection_rule", "highest_silhouette"),
+            "best_output_folder": best.get("output_folder"),
+            "best_metrics": best.get("metrics"),
+            "best_config": best.get("config"),
+        }
+        save_best_run(best_summary)
+        print(f"Best run selected: {best.get('output_folder')}")
