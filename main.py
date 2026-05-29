@@ -238,6 +238,21 @@ def main():
         summary_text,
         f"{args.output}/cluster_summary.txt"
     )
+    # append size anomaly warnings if available
+    try:
+        import json
+        with open(f"{args.output}/metrics.json", "r", encoding="utf-8") as mf:
+            m = json.load(mf)
+            size_flags = m.get("size_flags", {})
+            if size_flags:
+                extra = "Cluster size checks:\n"
+                for cid, info in size_flags.items():
+                    if info["flag"] != "ok":
+                        extra += f" - Cluster {cid}: {info['flag']} ({'; '.join(info['reasons'])}) size={info['size']}\n"
+                with open(f"{args.output}/cluster_summary.txt", "a", encoding="utf-8") as f:
+                    f.write("\n" + extra)
+    except Exception:
+        pass
     # Deep inspect a specific cluster if requested
     if args.inspect is not None:
         inspect_cluster(df, features, args.inspect)
