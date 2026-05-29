@@ -9,6 +9,7 @@ from src.summarizer import summarize_clusters, generate_mood_profile
 from src.utils import create_output_folder, save_text, save_json
 from src.history import save_run_history
 from src.metrics import compute_cluster_metrics
+from src.preprocess import preprocess_data, save_snapshot
 
 
 # ---  filter helper -------------------------------------------
@@ -108,6 +109,7 @@ def run_single_config(config):
     save_run_history(config, metrics, run_folder)
 
     result = {"config": config, "metrics": metrics, "output_folder": run_folder}
+    save_snapshot(output_slug, scaler, model, config, output_root=output_root)
     print(f"Run saved to {run_folder}")
     return result
 

@@ -2,7 +2,7 @@ import argparse
 import operator   
 
 from src.data_loader import load_dataset
-from src.preprocess import preprocess_data
+from src.preprocess import preprocess_data, save_snapshot
 from src.clustering import (
     find_best_k,
     cluster_data,
@@ -115,6 +115,14 @@ def main():
    
     parser.add_argument("--predict", help="Path to new data for prediction")
     parser.add_argument("--inspect", type=int, help="Cluster ID to deeply inspect")
+    parser.add_argument(
+        "--save-snapshot",
+        dest="save_snapshot",
+        default=None,
+        help="Save the scaler and model under this snapshot name, e.g. --save-snapshot my_run"
+    )
+        
+       
 
     args = parser.parse_args()
 
@@ -243,6 +251,21 @@ def main():
         index=False
     )
     save_artifacts(model, scaler, args.output)
+
+    # Save snapshot if name provided
+    if args.save_snapshot:
+        preprocessing_cfg = {
+            "scaler": args.scaler,
+            "features": features,
+            "reduce_dims": args.reduce_dims,
+            "n_components": args.n_components,
+        }
+        full_config = {
+            "preprocessing": preprocessing_cfg,
+            "clustering": {"k": k, "min_k": args.min_k, "max_k": args.max_k},
+            "filters": [],
+        }
+        save_snapshot(args.save_snapshot, scaler, model, full_config, output_root=args.output)
     print("Done!")
 
 
